@@ -1,2 +1,2 @@
-rg_name = "rg"
+rg_name  = "rg"
 location = "centralindia"
