@@ -1,0 +1,59 @@
+name: "Terraform Infra Provisioning"
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_USE_OIDC: true
+
+jobs:
+  tfplan:
+    name: "Terraform Plan"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform-version: 1.14.8
+      - run: terraform init -input=false
+      - run: terraform fmt -check
+      - run: terraform validate
+      - run: terraform plan -out=tfplan
+      - uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: tfplan
+          retention-days: 7
+
+  tfapply:
+     name: "Terraform Apply"
+     needs: tfplan
+     if: github.event_name=='push' &&  github.ref == 'refs/heads/main'
+     runs-on: ubuntu-latest
+     steps:
+       - uses: actions/checkout@v4
+       - uses: hashicorp/setup-terraform@v4
+         with:
+           terraform-version: 1.14.8
+       - run: terraform init -input=false
+       - run: terraform fmt -check
+       - run: terraform validate
+       - uses: actions/download-artifact@v4
+         with:
+           name: terraform-plan
+           path: .
+       - run: terraform apply tfplan    
+
+  
